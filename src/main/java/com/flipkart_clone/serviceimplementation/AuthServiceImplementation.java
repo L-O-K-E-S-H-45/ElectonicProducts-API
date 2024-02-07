@@ -22,7 +22,6 @@ import com.flipkart_clone.responsedtos.UserResponse;
 import com.flipkart_clone.service.AuthService;
 import com.flipkart_clone.util.ResponseStructure;
 
-import jakarta.persistence.EnumType;
 import lombok.AllArgsConstructor;
 
 @Service
@@ -49,7 +48,7 @@ public class AuthServiceImplementation implements AuthService {
 		
 		user.setUserName(userRequest.getEmail().substring(0,userRequest.getEmail().indexOf('@')));
 //		user.setUserName(userRequest.getEmail().split("@")[0]);
-		user.setEmail(userRequest.getEmail());
+		user.setEmail(userRequest.getEmail().toLowerCase());
 		user.setPassword(userRequest.getPassword());
 		user.setUserRole(userRequest.getUserRole());
 		
@@ -61,7 +60,7 @@ public class AuthServiceImplementation implements AuthService {
 		return UserResponse.builder()
 				.userId(user.getUserId())
 				.userName(user.getUserName())
-				.email(user.getEmail().toLowerCase())
+				.email(user.getEmail())
 				.userRole(user.getUserRole())
 				.build();
 	}
@@ -78,11 +77,13 @@ public class AuthServiceImplementation implements AuthService {
 	
 	@Override
 	public ResponseEntity<ResponseStructure<UserResponse>> registerUser(UserRequest userRequest) {
-		User user = userRepo.findByUserName(userRequest.getEmail().split("@")[0])
+		// Optional.of(findByUserName())
+		User user= userRepo.findByUserName(userRequest.getEmail().split("@")[0])
 				.map(u->{
-					if (u.isEmailVerified()) throw new IllegalRequestException("User already registered!!!");
+					if (u.isEmailVarified()) 
+						throw new IllegalRequestException("Failed to register User b/z User is already registered with specified Email Id");                   
 					else {
-						// send Email
+//						send email
 					}
 					return u;
 				})
@@ -91,8 +92,9 @@ public class AuthServiceImplementation implements AuthService {
 		return new ResponseEntity<ResponseStructure<UserResponse>>(
 				structure.setStatus(HttpStatus.ACCEPTED.value())
 				.setMessage(userRequest.getUserRole()+" registered successfully, kindly verify your email by "
-						+ "OTP sent to your email")
+						+ "OTP sent to your email Id")
 				.setData(mapUserObjectToUserResponse(user)), HttpStatus.ACCEPTED);
+		
 		
 	}
 	
