@@ -1,4 +1,4 @@
-package com.flipkart_clone.exception;
+package com.flipkart_clone.exceptionhandler;
 
 import java.util.HashMap;
 import java.util.List;
@@ -16,14 +16,17 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-//@RestControllerAdvice
-public class ApplicationExceptionHandler extends ResponseEntityExceptionHandler {
+import com.flipkart_clone.exception.IllegalRequestException;
+import com.flipkart_clone.exception.UserNotFoundByEmailException;
+
+@RestControllerAdvice
+public class AuthExceptionHandlerApplication extends ResponseEntityExceptionHandler {
 	
-	private ResponseEntity<Object> structure(HttpStatus httpStatus, String message, Object rootCause){
+	private ResponseEntity<Object> structure(HttpStatus status, String message, Object rootCause){
 		return new ResponseEntity<Object>(Map.of(
-				"rootCause",rootCause,
 				"message",message,
-				"statusCode",httpStatus.value()),httpStatus);
+				"rootCause",rootCause,
+				"status",status.value()), status);
 	}
 	
 	@Override
@@ -48,10 +51,3 @@ public class ApplicationExceptionHandler extends ResponseEntityExceptionHandler 
 	}
 
 }
-
-
-
-
-
-
-

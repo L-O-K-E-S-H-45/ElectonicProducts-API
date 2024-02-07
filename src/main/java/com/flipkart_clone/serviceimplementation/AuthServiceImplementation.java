@@ -19,7 +19,6 @@ import com.flipkart_clone.responsedtos.UserResponse;
 import com.flipkart_clone.service.AuthService;
 import com.flipkart_clone.util.ResponseStructure;
 
-import jakarta.persistence.EnumType;
 import lombok.AllArgsConstructor;
 
 @Service
@@ -46,7 +45,7 @@ public class AuthServiceImplementation implements AuthService {
 		
 		user.setUserName(userRequest.getEmail().substring(0,userRequest.getEmail().indexOf('@')));
 //		user.setUserName(userRequest.getEmail().split("@")[0]);
-		user.setEmail(userRequest.getEmail());
+		user.setEmail(userRequest.getEmail().toLowerCase());
 		user.setPassword(userRequest.getPassword());
 		user.setUserRole(userRequest.getUserRole());
 		
@@ -58,40 +57,44 @@ public class AuthServiceImplementation implements AuthService {
 		return UserResponse.builder()
 				.userId(user.getUserId())
 				.userName(user.getUserName())
-				.email(user.getEmail().toLowerCase())
+				.email(user.getEmail())
 				.userRole(user.getUserRole())
 				.build();
 	}
 	
-	private User saveUser(User user) {
-		System.out.println(user.getUserId()+" ---------");
+	private User saveUser(UserRequest userRequest) {
+		User user = mapUserRequestToUserObject(userRequest);
 		switch (user.getUserRole()) {
 		case CUSTOMER -> {customerRepo.save((Customer) user);}
 		case SELLER -> {sellerRepo.save((Seller)user);}
 		default -> throw new IllegalRequestException("Falied to register User b/z Invalid UserRole : "+user.getUserRole());
 		}
-		System.out.println(user.getUserId()+" ++++++++++");
 		return user;
 	}
 	
 	@Override
 	public ResponseEntity<ResponseStructure<UserResponse>> registerUser(UserRequest userRequest) {
-		if (userRepo.existsByEmail(userRequest.getEmail().toLowerCase())) 
-			throw new UserNotFoundByEmailException("Failed to register User");
-		
-//		if (!userRequest.getUserRole().equals(UserRole.SELLER) && !userRequest.getUserRole().equals(UserRole.CUSTOMER))
-//			throw new IllegalRequestException("Falied to register User b/z Invalid UserRole : "+userRequest.getUserRole());     
-		
-		User user = mapUserRequestToUserObject(userRequest);
-		user = saveUser(user);
+		// Optional.of(findByUserName())
+		User user= userRepo.findByUserName(userRequest.getEmail().split("@")[0])
+				.map(u->{
+					if (u.isEmailVarified()) 
+						throw new IllegalRequestException("Failed to register User b/z User is already registered with specified Email Id");                   
+					else {
+//						send email
+					}
+					return u;
+				})
+				.orElseGet(()->saveUser(userRequest));
 		
 		return new ResponseEntity<ResponseStructure<UserResponse>>(
 				structure.setStatus(HttpStatus.ACCEPTED.value())
 				.setMessage(userRequest.getUserRole()+" registered successfully, kindly verify your email by "
-						+ "OTP sent to your email")
+						+ "OTP sent to your email Id")
 				.setData(mapUserObjectToUserResponse(user)), HttpStatus.ACCEPTED);
 		
+		
 	}
+	
 
 }
 
