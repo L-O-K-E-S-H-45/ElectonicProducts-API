@@ -1,5 +1,8 @@
 package com.flipkart_clone.serviceimplementation;
 
+import java.util.List;
+import java.util.function.Supplier;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -63,27 +66,27 @@ public class AuthServiceImplementation implements AuthService {
 				.build();
 	}
 	
-	private User saveUser(User user) {
-		System.out.println(user.getUserId()+" ---------");
+	private User saveUser(UserRequest userRequest) {
+		User user = mapUserRequestToUserObject(userRequest);
 		switch (user.getUserRole()) {
 		case CUSTOMER -> {customerRepo.save((Customer) user);}
 		case SELLER -> {sellerRepo.save((Seller)user);}
 		default -> throw new IllegalRequestException("Falied to register User b/z Invalid UserRole : "+user.getUserRole());
 		}
-		System.out.println(user.getUserId()+" ++++++++++");
 		return user;
 	}
 	
 	@Override
 	public ResponseEntity<ResponseStructure<UserResponse>> registerUser(UserRequest userRequest) {
-		if (userRepo.existsByEmail(userRequest.getEmail().toLowerCase())) 
-			throw new UserNotFoundByEmailException("Failed to register User");
-		
-//		if (!userRequest.getUserRole().equals(UserRole.SELLER) && !userRequest.getUserRole().equals(UserRole.CUSTOMER))
-//			throw new IllegalRequestException("Falied to register User b/z Invalid UserRole : "+userRequest.getUserRole());     
-		
-		User user = mapUserRequestToUserObject(userRequest);
-		user = saveUser(user);
+		User user = userRepo.findByUserName(userRequest.getEmail().split("@")[0])
+				.map(u->{
+					if (u.isEmailVerified()) throw new IllegalRequestException("User already registered!!!");
+					else {
+						// send Email
+					}
+					return u;
+				})
+				.orElseGet(()->saveUser(userRequest));
 		
 		return new ResponseEntity<ResponseStructure<UserResponse>>(
 				structure.setStatus(HttpStatus.ACCEPTED.value())
@@ -92,8 +95,14 @@ public class AuthServiceImplementation implements AuthService {
 				.setData(mapUserObjectToUserResponse(user)), HttpStatus.ACCEPTED);
 		
 	}
+	
+	public void cleanupUnverifiedUsers() {
+		List<User> users = userRepo.findByIsEmailVerifiedFalse();
+		userRepo.deleteAll(users);
+	}
 
 }
+
 
 
 
