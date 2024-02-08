@@ -2,11 +2,13 @@ package com.flipkart_clone.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.flipkart_clone.requestdtos.OTPModdel;
 import com.flipkart_clone.requestdtos.UserRequest;
 import com.flipkart_clone.responsedtos.UserResponse;
 import com.flipkart_clone.service.AuthService;
@@ -26,9 +28,14 @@ public class AuthController {
 	private AuthService authService;
 
 	@PostMapping("/register")
-	public ResponseEntity<ResponseStructure<UserResponse>> registerUser(
+	public ResponseEntity<ResponseStructure<String>> registerUser(
 			@RequestBody @Valid UserRequest userRequest){
 		return authService.registerUser(userRequest);
+	}
+	
+	@PostMapping("/verify-otp")
+	public ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(@RequestBody OTPModdel otpModdel){
+		return authService.verifyOTP(otpModdel);
 	}
 	
 	
