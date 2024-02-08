@@ -9,7 +9,7 @@ import com.flipkart_clone.util.ResponseStructure;
 
 public interface AuthService {
 
-	ResponseEntity<ResponseStructure<UserResponse>> registerUser(
+	ResponseEntity<ResponseStructure<String>> registerUser(
 			UserRequest userRequest);
 
 	ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(OTPModdel otpModdel);

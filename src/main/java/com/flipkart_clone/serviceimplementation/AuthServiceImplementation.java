@@ -2,13 +2,12 @@ package com.flipkart_clone.serviceimplementation;
 
 import java.util.Date;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMailMessage;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -100,12 +99,13 @@ public class AuthServiceImplementation implements AuthService {
 
 //	@Scheduled(fixedDelay = 3000L)
 	private int generateOTP() {
-		return (int) (Math.random() * 900000) + 100000;
+//		return (int) (Math.random() * 900000) + 100000;
+		return new Random().nextInt(100000, 999999);
 	}
 	
 	/**
 	 * to make Asynchronous annotate with  @Async
-	 * @param messageStructure
+	 * @method sendMail
 	 */
 	@Async
 	private void sendMail(MessageStructure message) throws MessagingException {
@@ -115,12 +115,12 @@ public class AuthServiceImplementation implements AuthService {
 		helper.setTo(message.getTo());
 		helper.setSubject(message.getSubject());
 		helper.setSentDate(message.getSentDate());
-		helper.setText(message.getText());
+		helper.setText(message.getText(),true);
 		
 		javaMailSender.send(mimeMessage);
 		
 	}
-	
+
 	private void sendOtpToMail(User user, int otp) throws MessagingException {
 
 		sendMail(MessageStructure.builder()
@@ -128,24 +128,39 @@ public class AuthServiceImplementation implements AuthService {
 		.subject("Complete your registration to FlipKart")
 		.sentDate(new Date())
 		.text(
-				"Hey, "+user.getUserName() +" good to see you interested in flipkart, "
-				+"Complete your registration using the OTP <br/>"
+				"Hey, <h2>"+user.getUserName() +"</h2> good to see you interested in flipkart"
+				+"<br/>Complete your registration using the OTP <br/>"
 				+"<h1>"+otp+"</h1><br/>"
-				+"Note: OTP expires in 1 minute"
+				+"<h3>Note: OTP expires in 1 minute</h3>"
 				+"<br/><br/>"
-				+"with best regards<br/>"
-				+"FlipKart"
+				+"<h3>with best regards<br/>"
+				+"FlipKart</h3>"
+				)
+		.build());
+	}
+	
+	@Async
+	private void sendResponseMail(User user) throws MessagingException {
+		sendMail(MessageStructure.builder()
+		.to(user.getEmail())
+		.subject("Registration to FlipKart successfull")
+		.sentDate(new Date())
+		.text(
+				"Hey, <h2>"+user.getUserName()+"</h2> Welcome to FlipKart <br/>"
+				+"Successfully completed registration to flipkart as a role : <h3>"+user.getUserRole()+"</h3>"
+				+"<br/><br/>"
+				+"<h3>with best regards<br/>"
+				+"FlipKart</h3>"
 				)
 		.build());
 	}
 	
 	@Override
-	public ResponseEntity<ResponseStructure<UserResponse>> registerUser(UserRequest userRequest) {
+	public ResponseEntity<ResponseStructure<String>> registerUser(UserRequest userRequest) {
 		if (userRepo.existsByEmail(userRequest.getEmail()))
-			throw new UserAlreadyExistException("");
+			throw new UserAlreadyExistException("User is already exists with the specified email id");
 		
 		int otp=generateOTP();
-		System.out.println("OTP -> "+otp);
 		
 		User user = mapUserRequestToUserObject(userRequest);
 		userCacheStore.add(user.getEmail(), user);
@@ -154,37 +169,38 @@ public class AuthServiceImplementation implements AuthService {
 		try {
 			sendOtpToMail(user, otp);
 		} catch (MessagingException e) {
-//			throw new IllegalRequestException("Failed to send mail!!!");
-			throw new IllegalRequestException(e.getMessage());
+			throw new IllegalRequestException("Failed to send mail b/z "+e.getMessage());
 		}
 		
-		return new ResponseEntity<ResponseStructure<UserResponse>>(
+		ResponseStructure<String> structure = new ResponseStructure<>();
+		
+		return new ResponseEntity<ResponseStructure<String>>(
 				structure.setStatus(HttpStatus.ACCEPTED.value())
-				.setMessage("kindly verify your email by "+ "OTP sent to your email Id : ")
-				.setData(mapUserObjectToUserResponse(user)), HttpStatus.ACCEPTED);
+				.setMessage("Please verify your email by OTP sent to your email Id : ")
+				.setData("Mail sent successfully to Verify Email"), HttpStatus.ACCEPTED);
 		
 	}
+	
 	@Override
 	public ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(OTPModdel otpModdel) {
-//		String existOTP = otpCacheStore.get("key");
-//		if (existOTP!=null) { 
-//			if (existOTP.equals(otp)) return new ResponseEntity<String>(existOTP,HttpStatus.OK);
-//			else return new ResponseEntity<String>("OTP mismatch",HttpStatus.OK);
-//		}else return new ResponseEntity<String>("OTP is Expired",HttpStatus.OK);
-		
 		User user = userCacheStore.get(otpModdel.getEmail());
-		int otp = otpCacheStore.get(otpModdel.getEmail());
+		Integer otp = otpCacheStore.get(otpModdel.getEmail());
 		
-		if (otp!=0) {
+		if (otp!=null) {
 			if (user!=null) {
 				if (otp==otpModdel.getOtp()) {
 					user.setEmailVerified(true);
 					userRepo.save(user);
+					try {
+						sendResponseMail(user);
+					} catch (MessagingException e) {
+						throw new IllegalRequestException("Failed to send mail b/z "+e.getMessage());
+					}
 					return new ResponseEntity<ResponseStructure<UserResponse>>(
 							structure.setStatus(HttpStatus.ACCEPTED.value())
-							.setMessage(user.getUserName()+" Registered successfully with "+user.getUserRole())
+							.setMessage(user.getUserName()+" Registered successfully as role: "+user.getUserRole())
 							.setData(mapUserObjectToUserResponse(user)), HttpStatus.ACCEPTED);
-				} else throw new InvalidOtpException("Invalid OTP");
+				} else throw new InvalidOtpException("Please enter valid OTP");
 			} else throw new UserExpiredException("Registration session expired");
 		} else throw new OtpExpiredException("OTP expired!!!");
 	}
@@ -193,13 +209,7 @@ public class AuthServiceImplementation implements AuthService {
 
 	
 
-	
-	
-	
 	public void cleanupUnverifiedUsers() {
-//		List<User> users = userRepo.findByIsEmailVerifiedFalse();
-//		userRepo.deleteAll(users);
-		
 		userRepo.deleteAll(userRepo.findByIsEmailVerifiedFalse());
 	}
 
