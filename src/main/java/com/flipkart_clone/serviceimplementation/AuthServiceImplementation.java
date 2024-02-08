@@ -80,7 +80,7 @@ public class AuthServiceImplementation implements AuthService {
 		// Optional.of(findByUserName())
 		User user= userRepo.findByUserName(userRequest.getEmail().split("@")[0])
 				.map(u->{
-					if (u.isEmailVarified()) 
+					if (u.isEmailVerified()) 
 						throw new IllegalRequestException("Failed to register User b/z User is already registered with specified Email Id");                   
 					else {
 //						send email
