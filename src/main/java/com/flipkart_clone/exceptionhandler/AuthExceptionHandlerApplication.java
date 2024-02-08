@@ -17,6 +17,10 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import com.flipkart_clone.exception.IllegalRequestException;
+import com.flipkart_clone.exception.InvalidOtpException;
+import com.flipkart_clone.exception.OtpExpiredException;
+import com.flipkart_clone.exception.UserAlreadyExistException;
+import com.flipkart_clone.exception.UserExpiredException;
 import com.flipkart_clone.exception.UserNotFoundByEmailException;
 
 @RestControllerAdvice
@@ -48,6 +52,26 @@ public class AuthExceptionHandlerApplication extends ResponseEntityExceptionHand
 	@ExceptionHandler(IllegalRequestException.class)
 	public ResponseEntity<Object> handleIllegalRequestException(IllegalRequestException ex){
 		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "Illegal Input!!!");
+	}
+	
+	@ExceptionHandler(InvalidOtpException.class)
+	public ResponseEntity<Object> handleInvalidOtpException(InvalidOtpException ex){
+		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "Invalid OTP!!!");
+	}
+	
+	@ExceptionHandler(OtpExpiredException.class)
+	public ResponseEntity<Object> handleOtpExpiredException(OtpExpiredException ex){
+		return structure(HttpStatus.NOT_FOUND, ex.getMessage(), "OTP Expired!!!");
+	}
+	
+	@ExceptionHandler(UserAlreadyExistException.class)
+	public ResponseEntity<Object> handleUserAlreadyExistException(UserAlreadyExistException ex){
+		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "User Already exist!!!");
+	}
+	
+	@ExceptionHandler(UserExpiredException.class)
+	public ResponseEntity<Object> handleUserExpiredException(UserExpiredException ex){
+		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "User session expired!!!");
 	}
 
 }
