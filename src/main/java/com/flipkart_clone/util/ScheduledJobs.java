@@ -12,7 +12,7 @@ public class ScheduledJobs {
 	@Autowired
 	private AuthServiceImplementation authServiceImplementation;
 	
-	@Scheduled(fixedDelay = 5000L)
+//	@Scheduled(cron = " 0 0  0 * * * ")
 	public void callCleanupUnVerifiedUsers() {
 		authServiceImplementation.cleanupUnverifiedUsers();
 		System.out.println("Users deleted");
