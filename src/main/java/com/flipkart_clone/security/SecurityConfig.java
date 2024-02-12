@@ -32,8 +32,9 @@ public class SecurityConfig {
 	SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception{
 		return httpSecurity.csrf(csrf->csrf.disable())
 				.authorizeHttpRequests(auth->auth.requestMatchers("/**").permitAll().anyRequest().authenticated())
+//				.httpBasic(Customizer.withDefaults())
 				.formLogin(Customizer.withDefaults())
-				.authenticationProvider(authenticationProvider())
+//				.authenticationProvider(authenticationProvider())
 				.build();
 	}
 
@@ -45,9 +46,9 @@ public class SecurityConfig {
 		return authenticationProvider;
 	}
 	
-//	@Bean
-//	AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-//		return authenticationConfiguration.getAuthenticationManager();
-//	}
+	@Bean
+	AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+		return authenticationConfiguration.getAuthenticationManager();
+	}
 
 }
