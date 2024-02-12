@@ -19,9 +19,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import com.flipkart_clone.exception.IllegalRequestException;
 import com.flipkart_clone.exception.InvalidOtpException;
 import com.flipkart_clone.exception.OtpExpiredException;
+import com.flipkart_clone.exception.UserAccessBlockedException;
 import com.flipkart_clone.exception.UserAlreadyExistException;
 import com.flipkart_clone.exception.UserExpiredException;
 import com.flipkart_clone.exception.UserNotFoundByEmailException;
+import com.flipkart_clone.exception.UserNotLoggedInException;
 
 @RestControllerAdvice
 public class AuthExceptionHandlerApplication extends ResponseEntityExceptionHandler {
@@ -72,6 +74,16 @@ public class AuthExceptionHandlerApplication extends ResponseEntityExceptionHand
 	@ExceptionHandler(UserExpiredException.class)
 	public ResponseEntity<Object> handleUserExpiredException(UserExpiredException ex){
 		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "User session expired!!!");
+	}
+	
+	@ExceptionHandler(UserNotLoggedInException.class)
+	public ResponseEntity<Object> handleUserNotLoggedInException(UserNotLoggedInException ex){
+		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "User Not loggedIn!!!");
+	}
+	
+	@ExceptionHandler(UserAccessBlockedException.class)
+	public ResponseEntity<Object> handleUserAccessBlockedException(UserAccessBlockedException ex){
+		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "User Access blocked!!!");
 	}
 
 }
