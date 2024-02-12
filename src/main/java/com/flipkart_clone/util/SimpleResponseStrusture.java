@@ -3,7 +3,7 @@ package com.flipkart_clone.util;
 import org.springframework.stereotype.Component;
 
 @Component
-public class SimpleResponseStrusture<T> {
+public class SimpleResponseStrusture {
 	
 	private int status;
 	private String message;
@@ -11,14 +11,14 @@ public class SimpleResponseStrusture<T> {
 	public int getStatus() {
 		return status;
 	}
-	public SimpleResponseStrusture<T> setStatus(int status) {
+	public SimpleResponseStrusture setStatus(int status) {
 		this.status = status;
 		return this;
 	}
 	public String getMessage() {
 		return message;
 	}
-	public SimpleResponseStrusture<T> setMessage(String message) {
+	public SimpleResponseStrusture setMessage(String message) {
 		this.message = message;
 		return this;
 	}
