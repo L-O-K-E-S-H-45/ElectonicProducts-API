@@ -16,6 +16,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ import com.flipkart_clone.exception.OtpExpiredException;
 import com.flipkart_clone.exception.UserAlreadyExistException;
 import com.flipkart_clone.exception.UserExpiredException;
 import com.flipkart_clone.exception.UserNotFoundByEmailException;
+import com.flipkart_clone.exception.UserNotFoundException;
 import com.flipkart_clone.exception.UserNotLoggedInException;
 import com.flipkart_clone.repository.AccessTokenRepository;
 import com.flipkart_clone.repository.CustomerRepository;
@@ -77,6 +79,7 @@ public class AuthServiceImplementation implements AuthService {
 	
 	private ResponseStructure<UserResponse> structure;
 	private ResponseStructure<AuthResponse> authStructure;
+	private SimpleResponseStrusture simpleResponseStrusture;
 	
 	private CacheStore<Integer> otpCacheStore;
 	
@@ -106,6 +109,7 @@ public class AuthServiceImplementation implements AuthService {
 			PasswordEncoder passwordEncoder, 
 			ResponseStructure<UserResponse> structure,
 			ResponseStructure<AuthResponse> authStructure,
+			SimpleResponseStrusture simpleResponseStrusture,
 			CacheStore<Integer> otpCacheStore, 
 			CacheStore<User> userCacheStore, 
 			JavaMailSender javaMailSender,
@@ -121,6 +125,7 @@ public class AuthServiceImplementation implements AuthService {
 		this.passwordEncoder=passwordEncoder;
 		this.structure = structure;
 		this.authStructure=authStructure;
+		this.simpleResponseStrusture=simpleResponseStrusture;
 		this.otpCacheStore = otpCacheStore;
 		this.userCacheStore = userCacheStore;
 		this.javaMailSender = javaMailSender;
@@ -306,6 +311,7 @@ public class AuthServiceImplementation implements AuthService {
 
 	@Override
 	public ResponseEntity<ResponseStructure<AuthResponse>> login(AuthRequest authRequest, HttpServletResponse response) {
+		System.out.println("*******************************");
 		String username = authRequest.getEmail().split("@")[0];
 		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken
 				(username, authRequest.getPassword());
@@ -362,7 +368,7 @@ public class AuthServiceImplementation implements AuthService {
 	
 	
 	@Override
-	public ResponseEntity<SimpleResponseStrusture<String>> logout(String accessToken, String refreshToken, HttpServletResponse response) {
+	public ResponseEntity<SimpleResponseStrusture> logout(String accessToken, String refreshToken, HttpServletResponse response) {
 		if (accessToken==null && refreshToken==null)
 			throw new UserNotLoggedInException("User not logged in, Please login");
 		accessTokenRepo.findByToken(accessToken).ifPresent(accesstoken->{
@@ -376,18 +382,92 @@ public class AuthServiceImplementation implements AuthService {
 			response.addCookie(cookieManager.invalidate(new Cookie("rt", "")));
 		});
 		
-		SimpleResponseStrusture<String> strusture=new SimpleResponseStrusture<>();
+		SimpleResponseStrusture strusture=new SimpleResponseStrusture();
 		return ResponseEntity.ok(strusture
 				.setStatus(HttpStatus.OK.value())
 				.setMessage("Logged out successfully"));
 	}
+
+	@Override
+	public ResponseEntity<SimpleResponseStrusture> revokeAllDevices(String accessToken, String refreshToken,
+			HttpServletResponse response) {
+		if (accessToken==null || refreshToken==null)
+			throw new UserNotLoggedInException("User not logged in, Please login b/z token is null");
+		
+		String username=SecurityContextHolder.getContext().getAuthentication().getName();
+		if (username==null) throw new UserNotFoundException("User not logged in, Please login");
+		
+		userRepo.findByUserName(username).ifPresent(user->{
+			blockAccessTokens(accessTokenRepo.findAllByUserAndIsBlocked(user,false));
+			blockRefreshTokens(refreshTokenRepo.findAllByUserAndIsBlocked(user,false));
+		});
+		
+		response.addCookie(cookieManager.invalidate(new Cookie("at", "")));
+		response.addCookie(cookieManager.invalidate(new Cookie("rt", "")));
+		
+		return ResponseEntity.ok(simpleResponseStrusture
+				.setStatus(HttpStatus.OK.value())
+				.setMessage("Logged out from all devices"));
+	}
 	
-//findallbyexpirationbefore
+	@Override
+	public ResponseEntity<SimpleResponseStrusture> revokeOtherDevices(String accessToken, String refreshToken, HttpServletResponse response) {
+		if (accessToken==null || refreshToken==null)
+			throw new UserNotLoggedInException("User not logged in, Please login b/z token is null");
+		
+		String username=SecurityContextHolder.getContext().getAuthentication().getName();
+		if (username==null) throw new UserNotFoundException("User not logged in, Please login");
+		
+		userRepo.findByUserName(username)
+		.ifPresent(user->{
+			System.out.println("accT: --- "+accessTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user,false,accessToken));
+			blockAccessTokens(accessTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user,false,accessToken));
+			blockRefreshTokens(refreshTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user,false,refreshToken));
+		});
+		
+		response.addCookie(cookieManager.invalidate(new Cookie("at", "")));
+		response.addCookie(cookieManager.invalidate(new Cookie("rt", "")));
+		
+		return ResponseEntity.ok(simpleResponseStrusture
+				.setStatus(HttpStatus.OK.value())
+				.setMessage("Access revoked to other devices"));
+	}
+	
+	//---------------------------------------
+	private void blockAccessTokens(List<AccessToken> accessTokens) {
+		
+		accessTokens.forEach(token->{
+			token.setBlocked(true);
+			accessTokenRepo.save(token);
+		});
+	}
+	private void blockRefreshTokens(List<RefreshToken> refreshTokens) {
+		refreshTokens.forEach(token->{
+			token.setBlocked(true);
+			refreshTokenRepo.save(token);
+		});
+	}
+	
+
 	// -----------------------------
 	public void cleanupUnverifiedUsers() {
+		System.out.println("STARTS -> cleanupUnverifiedUsers()");
 		userRepo.deleteAll(userRepo.findByIsEmailVerifiedFalse());
+		System.out.println("ENDS -> cleanupUnverifiedUsers()");
 	}
 
+	public void cleanupExpiredAccessTokens() {
+		System.out.println("STARTS -> cleanupExpiredAccessTokens()");
+		accessTokenRepo.deleteAll(accessTokenRepo.findAllByExpirationBefore(LocalDateTime.now()));
+		System.out.println("ENDS -> cleanupExpiredAccessTokens()");
+	}
+	
+	public void cleanupExpiredRefreshTokens() {
+		System.out.println("STARTS -> cleanupExpiredRefreshTokens()");
+		refreshTokenRepo.deleteAll(refreshTokenRepo.findAllByExpirationBefore(LocalDateTime.now()));
+		System.out.println("ENDS -> cleanupExpiredRefreshTokens()");
+			
+	}
 
 
 }
