@@ -70,31 +70,19 @@ public class AuthServiceImplementation implements AuthService {
 //	private UserRepository userRepo;
 	
 	private UserRepository userRepo;
-	
 	private SellerRepository sellerRepo;
-	
 	private CustomerRepository customerRepo;
-	
 	private PasswordEncoder passwordEncoder;
-	
 	private ResponseStructure<UserResponse> structure;
 	private ResponseStructure<AuthResponse> authStructure;
 	private SimpleResponseStrusture simpleResponseStrusture;
-	
 	private CacheStore<Integer> otpCacheStore;
-	
 	private CacheStore<User> userCacheStore;
-
 	private JavaMailSender javaMailSender;
-	
 	private AuthenticationManager authenticationManager;
-	
 	private CookieManager cookieManager;
-	
 	private Jwtservice jwtservice;
-	
 	private AccessTokenRepository accessTokenRepo;
-	
 	private RefreshTokenRepository refreshTokenRepo;
 	
 	@Value("${myapp.access.expiry}")
@@ -172,7 +160,6 @@ public class AuthServiceImplementation implements AuthService {
 		return user;
 	}
 
-//	@Scheduled(fixedDelay = 3000L)
 	private int generateOTP() {
 //		return (int) (Math.random() * 900000) + 100000;
 		return new Random().nextInt(100000, 999999);
@@ -197,7 +184,6 @@ public class AuthServiceImplementation implements AuthService {
 	}
 
 	private void sendOtpToMail(User user, int otp) throws MessagingException {
-
 		sendMail(MessageStructure.builder()
 		.to(user.getEmail())
 		.subject("Complete your registration to FlipKart")
@@ -241,13 +227,13 @@ public class AuthServiceImplementation implements AuthService {
 		userCacheStore.add(user.getEmail(), user);
 		otpCacheStore.add(user.getEmail(), otp);
 		
-		userRepo.save(user);
+//		userRepo.save(user);
 		
-//		try {
-//			sendOtpToMail(user, otp);
-//		} catch (MessagingException e) {
-//			throw new IllegalRequestException("Failed to send mail b/z "+e.getMessage());
-//		}
+		try {
+			sendOtpToMail(user, otp);
+		} catch (MessagingException e) {
+			throw new IllegalRequestException("Failed to send mail b/z "+e.getMessage());
+		}
 		
 		ResponseStructure<String> structure = new ResponseStructure<>();
 		
@@ -311,7 +297,6 @@ public class AuthServiceImplementation implements AuthService {
 
 	@Override
 	public ResponseEntity<ResponseStructure<AuthResponse>> login(AuthRequest authRequest, HttpServletResponse response) {
-		System.out.println("*******************************");
 		String username = authRequest.getEmail().split("@")[0];
 		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken
 				(username, authRequest.getPassword());
@@ -347,14 +332,14 @@ public class AuthServiceImplementation implements AuthService {
 					accessToken.setBlocked(true);
 					accessTokenRepo.save(accessToken);
 				});
-				response.addCookie(cookieManager.invalidate(new Cookie("at", "")));
+				response.addCookie(cookieManager.invalidate(new Cookie("at", "")));  // To clear cookie from browser
 			}
 			if (cookie.getName().equals("rt")) {
 				refreshTokenRepo.findByToken(cookie.getValue()).ifPresent(refreshToken->{
 					refreshToken.setBlocked(true);
 					refreshTokenRepo.save(refreshToken);
 					});
-				response.addCookie(cookieManager.invalidate(new Cookie("rt", "")));
+				response.addCookie(cookieManager.invalidate(new Cookie("rt", "")));  // To clear cookie from browser
 			}
 		}
 		ResponseStructure<String> structure=new ResponseStructure<>();
@@ -387,6 +372,22 @@ public class AuthServiceImplementation implements AuthService {
 				.setStatus(HttpStatus.OK.value())
 				.setMessage("Logged out successfully"));
 	}
+	
+	//---------------------------------------
+	private void blockAccessTokens(List<AccessToken> accessTokens) {
+		
+		accessTokens.forEach(token->{
+			token.setBlocked(true);
+			accessTokenRepo.save(token);
+		});
+	}
+	private void blockRefreshTokens(List<RefreshToken> refreshTokens) {
+		refreshTokens.forEach(token->{
+			token.setBlocked(true);
+			refreshTokenRepo.save(token);
+		});
+	}
+	//---------------------------------------
 
 	@Override
 	public ResponseEntity<SimpleResponseStrusture> revokeAllDevices(String accessToken, String refreshToken,
@@ -402,7 +403,7 @@ public class AuthServiceImplementation implements AuthService {
 			blockRefreshTokens(refreshTokenRepo.findAllByUserAndIsBlocked(user,false));
 		});
 		
-		response.addCookie(cookieManager.invalidate(new Cookie("at", "")));
+		response.addCookie(cookieManager.invalidate(new Cookie("at", "")));  //****?????
 		response.addCookie(cookieManager.invalidate(new Cookie("rt", "")));
 		
 		return ResponseEntity.ok(simpleResponseStrusture
@@ -420,7 +421,6 @@ public class AuthServiceImplementation implements AuthService {
 		
 		userRepo.findByUserName(username)
 		.ifPresent(user->{
-			System.out.println("accT: --- "+accessTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user,false,accessToken));
 			blockAccessTokens(accessTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user,false,accessToken));
 			blockRefreshTokens(refreshTokenRepo.findAllByUserAndIsBlockedAndTokenNot(user,false,refreshToken));
 		});
@@ -432,21 +432,46 @@ public class AuthServiceImplementation implements AuthService {
 				.setStatus(HttpStatus.OK.value())
 				.setMessage("Access revoked to other devices"));
 	}
-	
-	//---------------------------------------
-	private void blockAccessTokens(List<AccessToken> accessTokens) {
+
+	@Override
+	public ResponseEntity<SimpleResponseStrusture> refreshLogin(HttpServletRequest request,
+			HttpServletResponse response) {
+		String username = SecurityContextHolder.getContext().getAuthentication().getName();
+		if (username==null) throw new UserNotFoundException("User not logged in, Please login");
 		
-		accessTokens.forEach(token->{
-			token.setBlocked(true);
-			accessTokenRepo.save(token);
-		});
+		Cookie[] cookies=request.getCookies();
+		
+		if (cookies==null) throw new UserNotFoundException("User not logged in, Please login b/z cookies are null");
+		
+		String at=null;
+		String rt=null;
+		for (Cookie cookie : cookies) {
+			if (cookie.getName().equals("at")) at=cookie.getValue();
+			if (cookie.getName().equals("rt")) rt=cookie.getValue();
+		}
+		
+		if (at!=null) {
+			accessTokenRepo.findByToken(at).ifPresent(accessToken->{
+				accessToken.setBlocked(true);
+				accessTokenRepo.save(accessToken);
+			});
+		}
+		if (rt!=null) {
+			refreshTokenRepo.findByToken(rt).ifPresent(refreshToken->{
+				refreshToken.setBlocked(true);
+				refreshTokenRepo.save(refreshToken);
+			});
+		} else throw new UserNotFoundException("User not logged in, Please login b/z refreshToken is null");
+		
+		return userRepo.findByUserName(username).map(user->{
+			grantAccess(response, user);
+			return ResponseEntity.ok(simpleResponseStrusture
+					.setStatus(HttpStatus.CREATED.value())
+					.setMessage("Refresh login successfull"));
+		}).get();
+		
 	}
-	private void blockRefreshTokens(List<RefreshToken> refreshTokens) {
-		refreshTokens.forEach(token->{
-			token.setBlocked(true);
-			refreshTokenRepo.save(token);
-		});
-	}
+
 	
 
 	// -----------------------------
@@ -468,6 +493,7 @@ public class AuthServiceImplementation implements AuthService {
 		System.out.println("ENDS -> cleanupExpiredRefreshTokens()");
 			
 	}
+
 
 
 }

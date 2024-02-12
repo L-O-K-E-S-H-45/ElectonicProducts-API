@@ -67,6 +67,6 @@ public class JwtFilter  extends OncePerRequestFilter{
 					log.info("Authenticated successfully");
 				}
 			}
-		filterChain.doFilter(request, response); // to pass to different filter layers
+		filterChain.doFilter(request, response); // To pass to different filter layers
 	}
 }
