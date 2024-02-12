@@ -268,11 +268,11 @@ public class AuthServiceImplementation implements AuthService {
 				if (otp==otpModdel.getOtp()) {
 					user.setEmailVerified(true);
 					userRepo.save(user);
-//					try {
-//						sendResponseMail(user);
-//					} catch (MessagingException e) {
-//						throw new IllegalRequestException("Failed to send mail b/z "+e.getMessage());
-//					}
+					try {
+						sendResponseMail(user);
+					} catch (MessagingException e) {
+						throw new IllegalRequestException("Failed to send mail b/z "+e.getMessage());
+					}
 					return new ResponseEntity<ResponseStructure<UserResponse>>(
 							structure.setStatus(HttpStatus.ACCEPTED.value())
 							.setMessage(user.getUserName()+" Registered successfully as role: "+user.getUserRole())
