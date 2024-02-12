@@ -2,6 +2,7 @@ package com.flipkart_clone.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,7 +16,9 @@ import com.flipkart_clone.responsedtos.AuthResponse;
 import com.flipkart_clone.responsedtos.UserResponse;
 import com.flipkart_clone.service.AuthService;
 import com.flipkart_clone.util.ResponseStructure;
+import com.flipkart_clone.util.SimpleResponseStrusture;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -47,5 +50,15 @@ public class AuthController {
 		return authService.login(authRequest,response);
 	}
 	
+	@PostMapping("/traditional-logout")
+	public ResponseEntity<ResponseStructure<String>> traditionalLogout(HttpServletRequest request, HttpServletResponse response){
+		return authService.traditionalLogout(request,response);
+	}
+	
+	@PostMapping("/logout")
+	public ResponseEntity<SimpleResponseStrusture<String>> logout(@CookieValue(name = "at", required = false) 
+		String accessToken, @CookieValue(name = "rt", required = false) String refreshToken, HttpServletResponse response){
+		return authService.logout(accessToken, refreshToken,response);
+	}
 	
 }

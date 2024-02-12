@@ -33,6 +33,7 @@ import com.flipkart_clone.exception.OtpExpiredException;
 import com.flipkart_clone.exception.UserAlreadyExistException;
 import com.flipkart_clone.exception.UserExpiredException;
 import com.flipkart_clone.exception.UserNotFoundByEmailException;
+import com.flipkart_clone.exception.UserNotLoggedInException;
 import com.flipkart_clone.repository.AccessTokenRepository;
 import com.flipkart_clone.repository.CustomerRepository;
 import com.flipkart_clone.repository.RefreshTokenRepository;
@@ -48,10 +49,12 @@ import com.flipkart_clone.service.AuthService;
 import com.flipkart_clone.util.CookieManager;
 import com.flipkart_clone.util.MessageStructure;
 import com.flipkart_clone.util.ResponseStructure;
+import com.flipkart_clone.util.SimpleResponseStrusture;
 
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -273,7 +276,33 @@ public class AuthServiceImplementation implements AuthService {
 			} else throw new UserExpiredException("Registration session expired");
 		} else throw new OtpExpiredException("OTP expired!!!");
 	}
-
+	
+	//---------------------------------------------------------------------
+	
+	private void grantAccess(HttpServletResponse response, User user) {
+		// generating access & refresh tokens 
+		String accessToken = jwtservice.generateAccessToken(user.getUserName());
+		String refreshToken = jwtservice.generateAccessToken(user.getUserName());
+		
+		// adding access & refresh tokens to the response
+		response.addCookie(cookieManager.configure(new Cookie("at", accessToken), accessExpirationInseconds));
+		response.addCookie(cookieManager.configure(new Cookie("rt", refreshToken), refreshExpirationInseconds));
+		
+		// saving access & refresh cookie into the database
+		accessTokenRepo.save(AccessToken.builder()
+				.token(accessToken)
+				.isBlocked(false)
+				.user(user)
+				.expiration(LocalDateTime.now().plusSeconds(accessExpirationInseconds))
+				.build());
+		
+		refreshTokenRepo.save(RefreshToken.builder()
+				.token(refreshToken)
+				.isBlocked(false)
+				.user(user)
+				.expiration(LocalDateTime.now().plusSeconds(refreshExpirationInseconds))
+				.build());
+	}
 
 	@Override
 	public ResponseEntity<ResponseStructure<AuthResponse>> login(AuthRequest authRequest, HttpServletResponse response) {
@@ -301,31 +330,60 @@ public class AuthServiceImplementation implements AuthService {
 		}
 	}
 
-	//---------------------------------------------------------------------
 	
-	private void grantAccess(HttpServletResponse response, User user) {
-		// generating access & refresh tokens 
-		String accessToken = jwtservice.generateAccessToken(user.getUserName());
-		String refreshToken = jwtservice.generateAccessToken(user.getUserName());
+	@Override
+	public ResponseEntity<ResponseStructure<String>> traditionalLogout(HttpServletRequest request, HttpServletResponse response) {
+		Cookie[] cookies = request.getCookies();
 		
-		// adding access & refresh tokens to the response
-		response.addCookie(cookieManager.configure(new Cookie("at", accessToken), accessExpirationInseconds));
-		response.addCookie(cookieManager.configure(new Cookie("rt", refreshToken), refreshExpirationInseconds));
+		for (Cookie cookie:cookies) {
+			if (cookie.getName().equals("at")) {
+				accessTokenRepo.findByToken(cookie.getValue()).ifPresent(accessToken->{
+					accessToken.setBlocked(true);
+					accessTokenRepo.save(accessToken);
+				});
+				response.addCookie(cookieManager.invalidate(new Cookie("at", "")));
+			}
+			if (cookie.getName().equals("rt")) {
+				refreshTokenRepo.findByToken(cookie.getValue()).ifPresent(refreshToken->{
+					refreshToken.setBlocked(true);
+					refreshTokenRepo.save(refreshToken);
+					});
+				response.addCookie(cookieManager.invalidate(new Cookie("rt", "")));
+			}
+		}
+		ResponseStructure<String> structure=new ResponseStructure<>();
 		
-		// saving access & refresh cookie into the database
-		accessTokenRepo.save(AccessToken.builder()
-				.token(accessToken)
-				.isBlocked(false)
-				.expiration(LocalDateTime.now().plusSeconds(accessExpirationInseconds))
-				.build());
-		
-		refreshTokenRepo.save(RefreshToken.builder()
-				.token(refreshToken)
-				.isBlocked(false)
-				.expiration(LocalDateTime.now().plusSeconds(refreshExpirationInseconds))
-				.build());
+		return ResponseEntity.ok(structure
+				.setStatus(HttpStatus.OK.value())
+				.setMessage("User successfully logged out")
+				.setData("Logout successfull"));
+			
 	}
-
+	
+	
+	@Override
+	public ResponseEntity<SimpleResponseStrusture<String>> logout(String accessToken, String refreshToken, HttpServletResponse response) {
+		if (accessToken==null && refreshToken==null)
+			throw new UserNotLoggedInException("User not logged in, Please login");
+		accessTokenRepo.findByToken(accessToken).ifPresent(accesstoken->{
+			accesstoken.setBlocked(true);
+			accessTokenRepo.save(accesstoken);
+			response.addCookie(cookieManager.invalidate(new Cookie("at", "")));
+		});
+		refreshTokenRepo.findByToken(accessToken).ifPresent(refreshtoken->{
+			refreshtoken.setBlocked(true);
+			refreshTokenRepo.save(refreshtoken);
+			response.addCookie(cookieManager.invalidate(new Cookie("rt", "")));
+		});
+		
+		SimpleResponseStrusture<String> strusture=new SimpleResponseStrusture<>();
+		return ResponseEntity.ok(strusture
+				.setStatus(HttpStatus.OK.value())
+				.setMessage("Logged out successfully"));
+	}
+	
+//findallbyexpirationbefore
+	// -----------------------------
 	public void cleanupUnverifiedUsers() {
 		userRepo.deleteAll(userRepo.findByIsEmailVerifiedFalse());
 	}
