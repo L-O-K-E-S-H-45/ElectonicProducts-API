@@ -23,6 +23,7 @@ import com.flipkart_clone.exception.UserAccessBlockedException;
 import com.flipkart_clone.exception.UserAlreadyExistException;
 import com.flipkart_clone.exception.UserExpiredException;
 import com.flipkart_clone.exception.UserNotFoundByEmailException;
+import com.flipkart_clone.exception.UserNotFoundException;
 import com.flipkart_clone.exception.UserNotLoggedInException;
 
 @RestControllerAdvice
@@ -78,12 +79,17 @@ public class AuthExceptionHandlerApplication extends ResponseEntityExceptionHand
 	
 	@ExceptionHandler(UserNotLoggedInException.class)
 	public ResponseEntity<Object> handleUserNotLoggedInException(UserNotLoggedInException ex){
-		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "User Not loggedIn!!!");
+		return structure(HttpStatus.NOT_FOUND, ex.getMessage(), "User Not loggedIn!!!");
 	}
 	
 	@ExceptionHandler(UserAccessBlockedException.class)
 	public ResponseEntity<Object> handleUserAccessBlockedException(UserAccessBlockedException ex){
-		return structure(HttpStatus.NOT_ACCEPTABLE, ex.getMessage(), "User Access blocked!!!");
+		return structure(HttpStatus.NOT_FOUND, ex.getMessage(), "User Access blocked!!!");
+	}
+	
+	@ExceptionHandler(UserNotFoundException.class)
+	public ResponseEntity<Object> handleUserNotFoundException(UserNotFoundException ex){
+		return structure(HttpStatus.NOT_FOUND, ex.getMessage(), "User not found");
 	}
 
 }

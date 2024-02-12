@@ -75,4 +75,9 @@ public class AuthController {
 		return authService.revokeOtherDevices(accessToken,refreshToken,response);
 	}
 	
+	@PostMapping("/refresh-login")
+	public ResponseEntity<SimpleResponseStrusture> refreshLogin(HttpServletRequest request, HttpServletResponse response){
+		return authService.refreshLogin(request,response);
+	}
+	
 }
