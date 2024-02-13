@@ -20,7 +20,7 @@ public interface AuthService {
 
 	ResponseEntity<ResponseStructure<UserResponse>> verifyOTP(OTPModdel otpModdel);
 
-	ResponseEntity<ResponseStructure<AuthResponse>> login(AuthRequest authRequest,HttpServletResponse response);
+	ResponseEntity<ResponseStructure<AuthResponse>> login(String accessToken,String refreshToken ,AuthRequest authRequest,HttpServletResponse response);
 
 	ResponseEntity<ResponseStructure<String>> traditionalLogout(HttpServletRequest request, HttpServletResponse response);
 
@@ -31,7 +31,7 @@ public interface AuthService {
 	ResponseEntity<SimpleResponseStrusture> revokeAllDevices(String accessToken, String refreshToken,
 			HttpServletResponse response);
 
-	ResponseEntity<SimpleResponseStrusture> refreshLogin(HttpServletRequest request,
+	ResponseEntity<SimpleResponseStrusture> refreshLogin(String accessToken, String refreshToken, 
 			HttpServletResponse response);
 	
 }

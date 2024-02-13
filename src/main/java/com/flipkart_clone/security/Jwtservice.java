@@ -51,15 +51,24 @@ public class Jwtservice {
 	}
 	
 	public Claims parseJwt(String token) {
+		System.out.println("token 1111 "+token);
 		 JwtParser jwtParser =Jwts.parserBuilder().setSigningKey(getSignature()).build();
 		 return jwtParser.parseClaimsJws(token).getBody();
 	}
 	
 	public String extractUsername(String token) {
+		System.out.println("token 2222 "+token);
 		return parseJwt(token).getSubject();
 	}
 
 }
+
+
+
+
+
+
+
 
 
 

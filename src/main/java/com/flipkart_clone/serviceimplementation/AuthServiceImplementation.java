@@ -32,6 +32,7 @@ import com.flipkart_clone.exception.IllegalRequestException;
 import com.flipkart_clone.exception.InvalidOtpException;
 import com.flipkart_clone.exception.OtpExpiredException;
 import com.flipkart_clone.exception.UserAlreadyExistException;
+import com.flipkart_clone.exception.UserAlreadyLoggedInException;
 import com.flipkart_clone.exception.UserExpiredException;
 import com.flipkart_clone.exception.UserNotFoundByEmailException;
 import com.flipkart_clone.exception.UserNotFoundException;
@@ -271,6 +272,7 @@ public class AuthServiceImplementation implements AuthService {
 	//---------------------------------------------------------------------
 	
 	private void grantAccess(HttpServletResponse response, User user) {
+		System.out.println("GRANT ACCESS ----------------");
 		// generating access & refresh tokens 
 		String accessToken = jwtservice.generateAccessToken(user.getUserName());
 		String refreshToken = jwtservice.generateAccessToken(user.getUserName());
@@ -296,7 +298,10 @@ public class AuthServiceImplementation implements AuthService {
 	}
 
 	@Override
-	public ResponseEntity<ResponseStructure<AuthResponse>> login(AuthRequest authRequest, HttpServletResponse response) {
+	public ResponseEntity<ResponseStructure<AuthResponse>> login(String accessToken,String refreshToken ,
+			AuthRequest authRequest, HttpServletResponse response) {
+		if (accessToken!=null || refreshToken!=null)
+			throw new UserAlreadyLoggedInException("Failed to login b/z user already logged in");
 		String username = authRequest.getEmail().split("@")[0];
 		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken
 				(username, authRequest.getPassword());
@@ -434,41 +439,30 @@ public class AuthServiceImplementation implements AuthService {
 	}
 
 	@Override
-	public ResponseEntity<SimpleResponseStrusture> refreshLogin(HttpServletRequest request,
+	public ResponseEntity<SimpleResponseStrusture> refreshLogin(String accessToken, String refreshToken, 
 			HttpServletResponse response) {
+		System.out.println("****************");
 		String username = SecurityContextHolder.getContext().getAuthentication().getName();
-		if (username==null) throw new UserNotFoundException("User not logged in, Please login");
+		if (username==null) throw new UserNotLoggedInException("Failed to refreshToken b/z User not logged in, Please login");
 		
-		Cookie[] cookies=request.getCookies();
-		
-		if (cookies==null) throw new UserNotFoundException("User not logged in, Please login b/z cookies are null");
-		
-		String at=null;
-		String rt=null;
-		for (Cookie cookie : cookies) {
-			if (cookie.getName().equals("at")) at=cookie.getValue();
-			if (cookie.getName().equals("rt")) rt=cookie.getValue();
-		}
-		
-		if (at!=null) {
-			accessTokenRepo.findByToken(at).ifPresent(accessToken->{
-				accessToken.setBlocked(true);
-				accessTokenRepo.save(accessToken);
+		if (accessToken!=null) {
+			accessTokenRepo.findByToken(accessToken).ifPresent(accesstoken->{
+				accesstoken.setBlocked(true);
+				accessTokenRepo.save(accesstoken);
 			});
 		}
-		if (rt!=null) {
-			refreshTokenRepo.findByToken(rt).ifPresent(refreshToken->{
-				refreshToken.setBlocked(true);
-				refreshTokenRepo.save(refreshToken);
+		if (refreshToken!=null) {
+			refreshTokenRepo.findByToken(refreshToken).ifPresent(refreshtoken->{
+				refreshtoken.setBlocked(true);
+				refreshTokenRepo.save(refreshtoken);
 			});
-		} else throw new UserNotFoundException("User not logged in, Please login b/z refreshToken is null");
-		
-		return userRepo.findByUserName(username).map(user->{
-			grantAccess(response, user);
-			return ResponseEntity.ok(simpleResponseStrusture
-					.setStatus(HttpStatus.CREATED.value())
-					.setMessage("Refresh login successfull"));
-		}).get();
+			return userRepo.findByUserName(username).map(user->{
+				grantAccess(response, user);
+				return ResponseEntity.ok(simpleResponseStrusture
+						.setStatus(HttpStatus.CREATED.value())
+						.setMessage("Refresh login successfull"));
+			}).get();
+		} else throw new UserNotLoggedInException("Failed to refreshLogin b/z User not logged in, Please login b/z refreshToken is null");
 		
 	}
 
