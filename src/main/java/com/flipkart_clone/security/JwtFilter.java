@@ -49,9 +49,7 @@ public class JwtFilter  extends OncePerRequestFilter{
 				if (cookie.getName().equals("rt")) rt=cookie.getValue();
 			}
 			String username=null;
-			if (at!=null && rt!=null) 
-				log.info("rt: "+rt);
-				log.info("at: "+at);
+			if (at!=null && rt!=null) {
 				Optional<AccessToken> accessToken = accessTokenRepo.findByTokenAndIsBlocked(at,false);
 				
 				if (accessToken==null) throw new UserNotLoggedInException("User not logged in");
@@ -67,6 +65,7 @@ public class JwtFilter  extends OncePerRequestFilter{
 					log.info("Authenticated successfully");
 				}
 			}
-		filterChain.doFilter(request, response); // to pass to different filter layers
+		}
+		filterChain.doFilter(request, response); // To pass to different filter layers
 	}
 }

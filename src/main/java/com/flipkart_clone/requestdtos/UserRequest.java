@@ -27,6 +27,6 @@ public class UserRequest {
 	private String password;
 	
 	@NotNull(message = "UserRole cannot be null!!!")
-	private UserRole userRole;
+	private String userRole;
 
 }
