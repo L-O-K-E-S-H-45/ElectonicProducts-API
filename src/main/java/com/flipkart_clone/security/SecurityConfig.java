@@ -43,8 +43,8 @@ public class SecurityConfig {
 //				.formLogin(Customizer.withDefaults())
 ////				.authenticationProvider(authenticationProvider())
 //				.build();
-				// from here we are managing our own session management(using stateLess authentication)
 				
+				// from here we are managing our own session management(using stateLess authentication)
 				.sessionManagement(management->
 					management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authenticationProvider(authenticationProvider())

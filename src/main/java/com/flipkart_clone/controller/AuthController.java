@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,6 +28,7 @@ import lombok.AllArgsConstructor;
 @RestController
 @RequestMapping("/flipkart-v1")
 @AllArgsConstructor
+@CrossOrigin(allowCredentials = "true", origins = "http://localhost:5173/")
 public class AuthController {
 	
 //	@Autowired // (this will do field injection, not good practice, better use constructor injection)

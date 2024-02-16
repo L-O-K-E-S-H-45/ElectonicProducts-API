@@ -128,15 +128,15 @@ public class AuthServiceImplementation implements AuthService {
 	public <T extends User>T mapUserRequestToUserObject(UserRequest userRequest){
 		User user=null;
 		switch (userRequest.getUserRole()) {
-		case CUSTOMER ->{user = new Customer();}
-		case SELLER -> {user = new Seller();}
+		case "CUSTOMER" ->{user = new Customer();}
+		case "SELLER" -> {user = new Seller();}
 		}
 		
 //		user.setUserName(userRequest.getEmail().substring(0,userRequest.getEmail().indexOf('@')));
 		user.setUserName(userRequest.getEmail().split("@")[0]);
 		user.setEmail(userRequest.getEmail());
 		user.setPassword(passwordEncoder.encode(userRequest.getPassword()));
-		user.setUserRole(userRequest.getUserRole());
+		user.setUserRole(UserRole.valueOf(userRequest.getUserRole()));
 		
 		return (T) user;
 		
@@ -183,8 +183,10 @@ public class AuthServiceImplementation implements AuthService {
 		javaMailSender.send(mimeMessage);
 		
 	}
-
+	
+	@Async
 	private void sendOtpToMail(User user, int otp) throws MessagingException {
+		System.out.println("Sent Otp ------");
 		sendMail(MessageStructure.builder()
 		.to(user.getEmail())
 		.subject("Complete your registration to FlipKart")
@@ -203,6 +205,7 @@ public class AuthServiceImplementation implements AuthService {
 	
 	@Async
 	private void sendResponseMail(User user) throws MessagingException {
+		System.out.println("Sent Mail -------");
 		sendMail(MessageStructure.builder()
 		.to(user.getEmail())
 		.subject("Registration to FlipKart successfull")
@@ -228,6 +231,7 @@ public class AuthServiceImplementation implements AuthService {
 		userCacheStore.add(user.getEmail(), user);
 		otpCacheStore.add(user.getEmail(), otp);
 		
+//		user.setEmailVerified(true);
 //		userRepo.save(user);
 		
 		try {
@@ -267,12 +271,12 @@ public class AuthServiceImplementation implements AuthService {
 				} else throw new InvalidOtpException("Please enter valid OTP");
 			} else throw new UserExpiredException("Registration session expired");
 		} else throw new OtpExpiredException("OTP expired!!!");
+		
 	}
 	
 	//---------------------------------------------------------------------
 	
 	private void grantAccess(HttpServletResponse response, User user) {
-		System.out.println("GRANT ACCESS ----------------");
 		// generating access & refresh tokens 
 		String accessToken = jwtservice.generateAccessToken(user.getUserName());
 		String refreshToken = jwtservice.generateAccessToken(user.getUserName());
@@ -306,6 +310,7 @@ public class AuthServiceImplementation implements AuthService {
 		UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken
 				(username, authRequest.getPassword());
 		Authentication authentication = authenticationManager.authenticate(token);
+		
 		if (!authentication.isAuthenticated())
 			throw new UsernameNotFoundException("Failed to Authenticate user");
 		else {
@@ -441,7 +446,6 @@ public class AuthServiceImplementation implements AuthService {
 	@Override
 	public ResponseEntity<SimpleResponseStrusture> refreshLogin(String accessToken, String refreshToken, 
 			HttpServletResponse response) {
-		System.out.println("****************");
 		String username = SecurityContextHolder.getContext().getAuthentication().getName();
 		if (username==null) throw new UserNotLoggedInException("Failed to refreshToken b/z User not logged in, Please login");
 		

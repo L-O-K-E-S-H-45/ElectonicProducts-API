@@ -18,8 +18,9 @@ public class CustomUserDetailsService implements UserDetailsService {
 	@Override
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 		// TODO Auto-generated method stub
-		return new CustomUserDetails(userRepo.findByUserName(username)
-				.orElseThrow(()-> new UsernameNotFoundException("Failed to Authenticate User!!!")));
+		return userRepo.findByUserName(username)
+				.map(user-> new CustomUserDetails(user))
+				.orElseThrow(()-> new UsernameNotFoundException("Failed to Authenticate User!!!"));
 	}
 
 }
